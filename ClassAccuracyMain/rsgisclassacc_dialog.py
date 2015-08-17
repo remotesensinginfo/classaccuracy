@@ -25,6 +25,8 @@ import os
 
 from PyQt4 import QtCore, QtGui
 import qgis.utils
+import numpy
+import csv
 
 MESSAGE_TIMEOUT = 20000
 FEAT_BUFFER = 100
@@ -70,7 +72,6 @@ class ClassNamesQComboBox(QtGui.QComboBox):
             if self.count() > 9:
                 self.setCurrentIndex(9)
         elif (event.type() == QtCore.QEvent.KeyPress) and ((event.key() == QtCore.Qt.Key_Return) or (event.key() == QtCore.Qt.Key_Enter)):
-            print("Go to Next - how to do that!?!")
             self.nextFeatSignal.emit()
 
 
@@ -228,7 +229,16 @@ class ClassAccuracyMainDialog(QtGui.QDialog):
         self.scaleLayout.addWidget(self.changeScaleButton)
         self.mainLayout.addLayout(self.scaleLayout)
         
-
+        self.guiLabelStep8 = QtGui.QLabel()
+        self.guiLabelStep8.setText("8. Produce Error Matrix:")
+        self.mainLayout.addWidget(self.guiLabelStep8)
+        
+        self.calcErrorMatrixButton = QtGui.QPushButton(self)
+        self.calcErrorMatrixButton.setText("Calc Error Matrix")
+        self.connect(self.calcErrorMatrixButton, QtCore.SIGNAL("clicked()"), self.calcErrMatrix)
+        self.calcErrorMatrixButton.setDisabled(True)
+        self.mainLayout.addWidget(self.calcErrorMatrixButton)
+        
         self.setLayout(self.mainLayout)
                 
         self.started = False
@@ -370,6 +380,7 @@ class ClassAccuracyMainDialog(QtGui.QDialog):
                 self.scaleOptionsTextLine.setEnabled(True)
                 self.addClassButton.setEnabled(True)
                 self.addClassField.setEnabled(True)
+                self.calcErrorMatrixButton.setEnabled(True)
                 
                 self.startButton.setDisabled(True)
                 self.availLayersCombo.setDisabled(True)
@@ -581,5 +592,151 @@ class ClassAccuracyMainDialog(QtGui.QDialog):
             self.addClassButton.setDisabled(True)
             self.addClassField.setDisabled(True)
         self.started = False        
+    
+    def calcErrMatrix(self):
+        if self.started:
+            self.featLayer.commitChanges()
+        
+            self.startButton.setEnabled(True)
+            self.startButton.setDefault(True) 
+            self.availLayersCombo.setEnabled(True)
+            self.classNameCombo.setEnabled(True)
+            self.classNameOutCombo.setEnabled(True)
+            
+            self.nextButton.setDisabled(True)
+            self.prevButton.setDisabled(True)
+            self.classifiedLabel.setDisabled(True)
+            self.fidLabel.setDisabled(True)
+            self.classesCombo.setDisabled(True)
+            self.goToButton.setDisabled(True)
+            self.goToTextField.setDisabled(True)
+            self.changeScaleButton.setDisabled(True)
+            self.scaleOptionsTextLine.setDisabled(True)
+            self.addClassButton.setDisabled(True)
+            self.addClassField.setDisabled(True)
+        self.started = False
+        
+        #print("calc error matrix")
+        outCSVFilePath = QtGui.QFileDialog.getSaveFileName(self, 'Save Error Matrix CSV', '', '*.csv')
+        if outCSVFilePath:
+            #print(outCSVFilePath)
+            
+            featsClassNamesImgList = self.featLayer.getValues(self.selectedClassFieldName)[0]
+            featsClassNamesGrdList = self.featLayer.getValues(self.selectedClassOutFieldName)[0]
+            numClasses = len(self.classNamesList)
+            
+            #print("Matrix Size: [" + str(numClasses) + "," + str(numClasses) + "]")
+            
+            errMatrix = numpy.zeros((numClasses,numClasses), dtype=numpy.float)
+            #print(errMatrix)
+            
+            for i in range(self.numFeats):
+                imgClass = featsClassNamesImgList[i]
+                imgClassIdx = self.classNamesList.index(imgClass)
+                grdClass = featsClassNamesGrdList[i]
+                grdClassIdx = self.classNamesList.index(grdClass)
+                #print("[" + imgClass + ", " + grdClass + "] = [ " + str(imgClassIdx) + ", " + str(grdClassIdx) + "]")
+                errMatrix[imgClassIdx,grdClassIdx] = errMatrix[imgClassIdx,grdClassIdx] + 1
 
+            #print(errMatrix)
+            errMatrixPercent = (errMatrix / numpy.sum(errMatrix)) * 100
+            #print(errMatrixPercent)
 
+            producerAcc = numpy.zeros(numClasses, dtype=numpy.float)
+            userAcc = numpy.zeros(numClasses, dtype=numpy.float)
+            producerAccCount = numpy.zeros(numClasses, dtype=numpy.float)
+            userAccCount = numpy.zeros(numClasses, dtype=numpy.float)
+            overallCorrCount = 0.0
+            
+            for i in range(numClasses):
+                #print(self.classNamesList[i])
+                corVal = float(errMatrix[i,i])
+                sumRow = float(numpy.sum(errMatrix[i,]))
+                sumCol = float(numpy.sum(errMatrix[...,i]))
+                overallCorrCount = overallCorrCount + corVal
+                #print("Correct: " + str(corVal))
+                #print("Sum Row: " + str(sumRow))
+                if sumRow == 0:
+                    userAcc[i] = 0
+                    userAccCount[i] = 0
+                else:
+                    userAcc[i] = corVal / sumRow
+                    userAccCount[i] = sumRow
+                #print("Sum Col: " + str(sumCol))
+                if sumCol == 0:
+                    producerAcc[i] = 0
+                    producerAccCount[i] = 0
+                else:
+                    producerAcc[i] = corVal / sumCol
+                    producerAccCount[i] = sumCol
+            
+            overallAcc = (overallCorrCount / numpy.sum(errMatrix)) * 100
+            producerAcc = producerAcc * 100
+            userAcc = userAcc * 100
+            
+            #print("Overall Accuracy: " + str(overallAcc))
+            #print("Producer Accuracy: " + str(producerAcc))
+            #print("User Accuracy: " + str(userAcc))
+            
+            kappaPartA = overallCorrCount * numpy.sum(producerAccCount)
+            kappaPartB = numpy.sum(userAccCount * producerAccCount)
+            kappaPartC = numpy.sum(errMatrix) * numpy.sum(errMatrix)
+
+            kappa = float(kappaPartA - kappaPartB) / float(kappaPartC - kappaPartB)
+            
+            #print("Kappa: ", kappa)
+            
+            with open(outCSVFilePath, 'wb') as csvfile:
+                accWriter = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
+                
+                accWriter.writerow(['Overall Accuracy (%)', round(overallAcc,2)])
+                accWriter.writerow(['kappa', round(kappa,2)])
+                
+                accWriter.writerow([])
+                accWriter.writerow(['Counts:'])
+                
+                colNames = [' ']
+                for i in range(numClasses):
+                    colNames.append(self.classNamesList[i])
+                colNames.append('User')
+                accWriter.writerow(colNames)
+                
+                for i in range(numClasses):
+                    row = []
+                    row.append(self.classNamesList[i])
+                    for j in range(numClasses):
+                        row.append(errMatrix[i,j])
+                    row.append(round(userAccCount[i],2))
+                    accWriter.writerow(row)
+                
+                prodRow = ['Producer']
+                for i in range(numClasses):
+                    prodRow.append(round(producerAccCount[i],2))
+                prodRow.append(overallCorrCount)
+                accWriter.writerow(prodRow)
+                
+                accWriter.writerow([])
+                accWriter.writerow(['Percentage:'])
+                
+                colNames = [' ']
+                for i in range(numClasses):
+                    colNames.append(self.classNamesList[i])
+                colNames.append('User (%)')
+                accWriter.writerow(colNames)
+                
+                for i in range(numClasses):
+                    row = []
+                    row.append(self.classNamesList[i])
+                    for j in range(numClasses):
+                        row.append(round(errMatrixPercent[i,j],2))
+                    row.append(round(userAcc[i],2))
+                    accWriter.writerow(row)
+                
+                prodRow = ['Producer (%)']
+                for i in range(numClasses):
+                    prodRow.append(round(producerAcc[i],2))
+                prodRow.append(round(overallAcc,2))
+                accWriter.writerow(prodRow)
+                
+                
+                
