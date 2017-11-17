@@ -29,7 +29,7 @@ import numpy
 import csv
 
 MESSAGE_TIMEOUT = 20000
-FEAT_BUFFER = 100
+FEAT_BUFFER = 0.02
 
 
 class ClassNamesQComboBox(QtGui.QComboBox):
@@ -116,6 +116,20 @@ class ClassAccuracyMainDialog(QtGui.QDialog):
         self.classNameOutLayout.addWidget(self.classNameOutComboLabel)
         self.classNameOutLayout.addWidget(self.classNameOutCombo)
         self.mainLayout.addLayout(self.classNameOutLayout)
+        
+        self.featProcessedComboLabel = QtGui.QLabel()
+        self.featProcessedComboLabel.setText("Processed Column:")
+        self.featProcessedCombo = QtGui.QComboBox()
+        self.featProcessedLayout = QtGui.QHBoxLayout()
+        self.featProcessedLayout.addWidget(self.featProcessedComboLabel)
+        self.featProcessedLayout.addWidget(self.featProcessedCombo)
+        self.mainLayout.addLayout(self.featProcessedLayout)
+        
+        self.visitProcessedCheckBox = QtGui.QCheckBox("Visit Processed Points")
+        self.visitProcessedCheckBox.setCheckState(QtCore.Qt.Unchecked)
+        self.visitProcessedLayout = QtGui.QHBoxLayout()
+        self.visitProcessedLayout.addWidget(self.visitProcessedCheckBox)
+        self.mainLayout.addLayout(self.visitProcessedLayout)
         
         self.guiLabelStep3 = QtGui.QLabel()
         self.guiLabelStep3.setText("3. Press Start when ready:")
@@ -269,9 +283,9 @@ class ClassAccuracyMainDialog(QtGui.QDialog):
                     
     def populateLayerInfo(self, selectedName):
         """ jklsjfsdlk """
-        #print(selectedName)
         self.classNameCombo.clear()
         self.classNameOutCombo.clear()
+        self.featProcessedCombo.clear()
 
         qgisIface = qgis.utils.iface
         
@@ -279,38 +293,41 @@ class ClassAccuracyMainDialog(QtGui.QDialog):
         
         allLayers = mCanvas.layers()
         found = False
+        fieldNames = list()
         for layer in allLayers:
             if layer.name() == selectedName:
                 layerFields = layer.pendingFields()
                 numFields = layerFields.size()
                 for i in range(numFields):
                     field = layerFields.field(i)
-                    self.classNameCombo.addItem(field.name())
-                    self.classNameOutCombo.addItem(field.name())
+                    if field not in fieldNames:
+                        self.classNameCombo.addItem(field.name())
+                        self.classNameOutCombo.addItem(field.name())
+                        self.featProcessedCombo.addItem(field.name())
+                        fieldNames.append(field)
                 found = True
                 break
 
     def startProcessing(self):
         """ Starting Processing """
         if not self.started:
-            #print("Starting processing...")
             
             qgisIface = qgis.utils.iface
                     
             mCanvas = qgisIface.mapCanvas()
-            mCanvas.setSelectionColor( QtGui.QColor("red") )
+            mCanvas.setSelectionColor( QtGui.QColor("yellow") )
             
             selectedIdx = self.availLayersCombo.currentIndex()
             selectedName = self.availLayersCombo.itemText(selectedIdx)
-            #print(selectedName)
             
             self.selectedClassFieldIdx = self.classNameCombo.currentIndex()
             self.selectedClassFieldName = self.classNameCombo.itemText(self.selectedClassFieldIdx)
-            #print(self.selectedClassFieldName)
             
             self.selectedClassOutFieldIdx = self.classNameOutCombo.currentIndex()
             self.selectedClassOutFieldName = self.classNameOutCombo.itemText(self.selectedClassOutFieldIdx)
-            #print(self.selectedClassOutFieldName)        
+            
+            self.selectedFeatProcessedFieldIdx = self.featProcessedCombo.currentIndex()
+            self.selectedFeatProcessedFieldName = self.featProcessedCombo.itemText(self.selectedFeatProcessedFieldIdx)
                     
             allLayers = mCanvas.layers()
             found = False
@@ -321,14 +338,18 @@ class ClassAccuracyMainDialog(QtGui.QDialog):
             
             self.selectedClassFieldIdx = self.featLayer.fieldNameIndex(self.selectedClassFieldName)
             self.selectedClassFieldOutIdx = self.featLayer.fieldNameIndex(self.selectedClassOutFieldName)
+            self.selectedFeatProcessedFieldIdx = self.featLayer.fieldNameIndex(self.selectedFeatProcessedFieldName)
+            
+            self.onlyGoToUnProcessedFeats = True
+            if self.visitProcessedCheckBox.checkState() == QtCore.Qt.Checked:
+                self.onlyGoToUnProcessedFeats = False
             
             classNamesTmpList = self.featLayer.getValues(self.selectedClassFieldName)
             self.classNamesList = list(set(classNamesTmpList[0]))
-            #print(self.classNamesList)            
-            
+                        
             classOutNamesTmpList = self.featLayer.getValues(self.selectedClassOutFieldName)
             classOutNamesList = list(set(classOutNamesTmpList[0]))
-            #print(classOutNamesList)
+            
             for classOutName in classOutNamesList:
                 if (not classOutName in self.classNamesList) and (not classOutName == 'NULL') and (not classOutName == None):
                     self.classNamesList.append(classOutName)
@@ -344,51 +365,65 @@ class ClassAccuracyMainDialog(QtGui.QDialog):
             self.featIter = self.featLayer.getFeatures()
             self.cFeat = self.featIter.next()
             if self.cFeatN < self.numFeats:
-                self.featLayer.startEditing()
                 
-                self.featLayer.setSelectedFeatures([self.cFeat.id()])
+                availFeats = True
+                if self.onlyGoToUnProcessedFeats:
+                    foundUnProcessedFeat = False
+                    while not foundUnProcessedFeat:
+                        if int(self.cFeat[self.selectedFeatProcessedFieldIdx]) == 0:
+                            foundUnProcessedFeat = True
+                        else:
+                            self.cFeatN = self.cFeatN + 1
+                            if self.cFeatN < self.numFeats:
+                                self.cFeat = self.featIter.next()
+                            else:
+                                availFeats = False
+                                break
                 
-                cClassName = str(self.cFeat[self.selectedClassFieldIdx])
-                #print("cClassName: ", cClassName)
-                self.classifiedLabel.setText(cClassName)
+                if availFeats:
+                    self.featLayer.startEditing()
                 
-                outClassName = str(self.cFeat[self.selectedClassOutFieldIdx])
-                #print("outClassName: ", outClassName)
-                if (outClassName == None) or (outClassName.strip() == "") or (not (outClassName.strip() in self.classNamesList)):
-                    self.classesCombo.setCurrentIndex(self.classNamesList.index(cClassName))
-                else:
-                    self.classesCombo.setCurrentIndex(self.classNamesList.index(outClassName))               
-                
-                #print("Feature ID : ", self.cFeat.id())
-                self.fidLabel.setText(str(self.cFeat.id()+1) + " of " + str(self.numFeats))
-                
-                box = self.featLayer.boundingBoxOfSelected()
-                box = box.buffer(self.cScaleBuffer)
-                mCanvas.setExtent(box)
-                mCanvas.refresh()
-                
-                self.nextButton.setEnabled(True)
-                self.nextButton.setDefault(True) 
-                self.prevButton.setEnabled(True)
-                self.classifiedLabel.setEnabled(True)
-                self.fidLabel.setEnabled(True)
-                self.classesCombo.setEnabled(True)
-                self.goToButton.setEnabled(True)
-                self.goToTextField.setEnabled(True)
-                self.classesCombo.setFocus()
-                self.changeScaleButton.setEnabled(True)
-                self.scaleOptionsTextLine.setEnabled(True)
-                self.addClassButton.setEnabled(True)
-                self.addClassField.setEnabled(True)
-                self.calcErrorMatrixButton.setEnabled(True)
-                
-                self.startButton.setDisabled(True)
-                self.availLayersCombo.setDisabled(True)
-                self.classNameCombo.setDisabled(True)
-                self.classNameOutCombo.setDisabled(True)
+                    self.featLayer.setSelectedFeatures([self.cFeat.id()])
+                    
+                    cClassName = str(self.cFeat[self.selectedClassFieldIdx])
+                    self.classifiedLabel.setText(cClassName)
+                    
+                    outClassName = str(self.cFeat[self.selectedClassOutFieldIdx])
+                    if (outClassName == None) or (outClassName.strip() == "") or (not (outClassName.strip() in self.classNamesList)):
+                        self.classesCombo.setCurrentIndex(self.classNamesList.index(cClassName))
+                    else:
+                        self.classesCombo.setCurrentIndex(self.classNamesList.index(outClassName))               
+                    
+                    self.fidLabel.setText(str(self.cFeat.id()+1) + " of " + str(self.numFeats))
+                    
+                    box = self.featLayer.boundingBoxOfSelected()
+                    box = box.buffer(self.cScaleBuffer)
+                    mCanvas.setExtent(box)
+                    mCanvas.refresh()
+                    
+                    self.nextButton.setEnabled(True)
+                    self.nextButton.setDefault(True) 
+                    self.prevButton.setEnabled(True)
+                    self.classifiedLabel.setEnabled(True)
+                    self.fidLabel.setEnabled(True)
+                    self.classesCombo.setEnabled(True)
+                    self.goToButton.setEnabled(True)
+                    self.goToTextField.setEnabled(True)
+                    self.classesCombo.setFocus()
+                    self.changeScaleButton.setEnabled(True)
+                    self.scaleOptionsTextLine.setEnabled(True)
+                    self.addClassButton.setEnabled(True)
+                    self.addClassField.setEnabled(True)
+                    self.calcErrorMatrixButton.setEnabled(True)
+                    
+                    self.startButton.setDisabled(True)
+                    self.availLayersCombo.setDisabled(True)
+                    self.classNameCombo.setDisabled(True)
+                    self.classNameOutCombo.setDisabled(True)
+                    self.featProcessedCombo.setDisabled(True)
+                    self.visitProcessedCheckBox.setDisabled(True)
                 
             else:
-                #print("Processed all features...")
                 self.featLayer.commitChanges()
                 
                 self.startButton.setEnabled(True)
@@ -396,6 +431,8 @@ class ClassAccuracyMainDialog(QtGui.QDialog):
                 self.availLayersCombo.setEnabled(True)
                 self.classNameCombo.setEnabled(True)
                 self.classNameOutCombo.setEnabled(True)
+                self.featProcessedCombo.setEnabled(True)
+                self.visitProcessedCheckBox.setEnabled(True)
                 
                 self.nextButton.setDisabled(True)
                 self.prevButton.setDisabled(True)
@@ -407,46 +444,88 @@ class ClassAccuracyMainDialog(QtGui.QDialog):
                 self.scaleOptionsTextLine.setDisabled(True)
                 self.addClassButton.setDisabled(True)
                 self.addClassField.setDisabled(True)
-            self.started = True  
+            
+            if availFeats:
+                self.started = True  
     
     def nextFeat(self):
-        #print("Next Feature")
+        """ Get the next feat """
         if self.started:
             ## Update the input layer
             selectedOutClassIdx = self.classesCombo.currentIndex()
             selectedOutClassName = self.classesCombo.itemText(selectedOutClassIdx)
             
             self.featLayer.changeAttributeValue(self.cFeat.id(), self.selectedClassOutFieldIdx, selectedOutClassName, "")
+            self.featLayer.changeAttributeValue(self.cFeat.id(), self.selectedFeatProcessedFieldIdx, 1, "")
             
             self.featLayer.commitChanges()
             self.featLayer.startEditing()
             
             ## Move on to the next feature...
-            self.featLayer.setSelectedFeatures([])
+            self.featLayer.setSelectedFeatures([])            
+            
             self.cFeatN = self.cFeatN + 1
             if self.cFeatN < self.numFeats:
                 self.cFeat = self.featIter.next()
-                self.featLayer.setSelectedFeatures([self.cFeat.id()])
-                #print("Feature ID : ", self.cFeat.id())
-                self.fidLabel.setText(str(self.cFeat.id()+1) + " of " + str(self.numFeats))
                 
-                cClassName = str(self.cFeat[self.selectedClassFieldIdx])
-                #print("cClassName: ", cClassName)
-                self.classifiedLabel.setText(cClassName)
+                availFeats = True
+                if self.onlyGoToUnProcessedFeats:
+                    foundUnProcessedFeat = False
+                    while not foundUnProcessedFeat:
+                        if int(self.cFeat[self.selectedFeatProcessedFieldIdx]) == 0:
+                            foundUnProcessedFeat = True
+                        else:
+                            self.cFeatN = self.cFeatN + 1
+                            if self.cFeatN < self.numFeats:
+                                self.cFeat = self.featIter.next()
+                            else:
+                                availFeats = False
+                                break
                 
-                outClassName = str(self.cFeat[self.selectedClassOutFieldIdx])
-                #print("outClassName: ", outClassName)
-                if (outClassName == None) or (outClassName.strip() == "") or (not (outClassName.strip() in self.classNamesList)):
-                    self.classesCombo.setCurrentIndex(self.classNamesList.index(cClassName))
+                if availFeats:           
+                    self.featLayer.setSelectedFeatures([self.cFeat.id()])
+                    #print("Feature ID : ", self.cFeat.id())
+                    self.fidLabel.setText(str(self.cFeat.id()+1) + " of " + str(self.numFeats))
+                    
+                    cClassName = str(self.cFeat[self.selectedClassFieldIdx])
+                    #print("cClassName: ", cClassName)
+                    self.classifiedLabel.setText(cClassName)
+                    
+                    outClassName = str(self.cFeat[self.selectedClassOutFieldIdx])
+                    #print("outClassName: ", outClassName)
+                    if (outClassName == None) or (outClassName.strip() == "") or (not (outClassName.strip() in self.classNamesList)):
+                        self.classesCombo.setCurrentIndex(self.classNamesList.index(cClassName))
+                    else:
+                        self.classesCombo.setCurrentIndex(self.classNamesList.index(outClassName))
+                    
+                    box = self.featLayer.boundingBoxOfSelected()
+                    box = box.buffer(self.cScaleBuffer)
+                    qgisIface = qgis.utils.iface        
+                    mCanvas = qgisIface.mapCanvas()
+                    mCanvas.setExtent(box)
+                    mCanvas.refresh()
                 else:
-                    self.classesCombo.setCurrentIndex(self.classNamesList.index(outClassName))
+                    self.featLayer.commitChanges()
                 
-                box = self.featLayer.boundingBoxOfSelected()
-                box = box.buffer(self.cScaleBuffer)
-                qgisIface = qgis.utils.iface        
-                mCanvas = qgisIface.mapCanvas()
-                mCanvas.setExtent(box)
-                mCanvas.refresh() 
+                    self.startButton.setEnabled(True)
+                    self.startButton.setDefault(True) 
+                    self.availLayersCombo.setEnabled(True)
+                    self.classNameCombo.setEnabled(True)
+                    self.classNameOutCombo.setEnabled(True)
+                    self.featProcessedCombo.setEnabled(True)
+                    self.visitProcessedCheckBox.setEnabled(True)
+                    
+                    self.nextButton.setDisabled(True)
+                    self.prevButton.setDisabled(True)
+                    self.classifiedLabel.setDisabled(True)
+                    self.classesCombo.setDisabled(True)
+                    self.goToButton.setDisabled(True)
+                    self.goToTextField.setDisabled(True)
+                    self.changeScaleButton.setDisabled(True)
+                    self.scaleOptionsTextLine.setDisabled(True)
+                    self.addClassButton.setDisabled(True)
+                    self.addClassField.setDisabled(True)
+                
             else:
                 #print("Processed all features...")
                 self.featLayer.commitChanges()
@@ -456,6 +535,8 @@ class ClassAccuracyMainDialog(QtGui.QDialog):
                 self.availLayersCombo.setEnabled(True)
                 self.classNameCombo.setEnabled(True)
                 self.classNameOutCombo.setEnabled(True)
+                self.featProcessedCombo.setEnabled(True)
+                self.visitProcessedCheckBox.setEnabled(True)
                 
                 self.nextButton.setDisabled(True)
                 self.prevButton.setDisabled(True)
@@ -559,7 +640,7 @@ class ClassAccuracyMainDialog(QtGui.QDialog):
 
     def updateScale(self):
         if self.started:
-            self.cScaleBuffer = int(self.scaleOptionsTextLine.text())
+            self.cScaleBuffer = float(self.scaleOptionsTextLine.text())
             #print(self.cScaleBuffer)
             
             box = self.featLayer.boundingBoxOfSelected()
@@ -579,6 +660,8 @@ class ClassAccuracyMainDialog(QtGui.QDialog):
             self.availLayersCombo.setEnabled(True)
             self.classNameCombo.setEnabled(True)
             self.classNameOutCombo.setEnabled(True)
+            self.featProcessedCombo.setEnabled(True)
+            self.visitProcessedCheckBox.setEnabled(True)
             
             self.nextButton.setDisabled(True)
             self.prevButton.setDisabled(True)
@@ -602,6 +685,8 @@ class ClassAccuracyMainDialog(QtGui.QDialog):
             self.availLayersCombo.setEnabled(True)
             self.classNameCombo.setEnabled(True)
             self.classNameOutCombo.setEnabled(True)
+            self.featProcessedCombo.setEnabled(True)
+            self.visitProcessedCheckBox.setEnabled(True)
             
             self.nextButton.setDisabled(True)
             self.prevButton.setDisabled(True)
