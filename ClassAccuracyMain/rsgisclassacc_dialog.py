@@ -264,39 +264,31 @@ class ClassAccuracyMainDialog(QtGui.QDialog):
         self.setLayout(self.mainLayout)
                 
         self.started = False
+        self.justAssigned = False
 
     
     def populateLayers(self):
-        """ dsfsd """
+        """ Initialise layers list """
         self.availLayersCombo.clear()
         self.classNameCombo.clear()
         self.classNameOutCombo.clear()
+        self.featProcessedCombo.clear()
         
         qgisIface = qgis.utils.iface
-        
         mCanvas = qgisIface.mapCanvas()
         
         allLayers = mCanvas.layers()
         first = True
         for layer in allLayers:
             self.availLayersCombo.addItem(layer.name())
-            if first:
-                first = False
-                layerFields = layer.pendingFields()
-                numFields = layerFields.size()
-                for i in range(numFields):
-                    field = layerFields.field(i)
-                    self.classNameCombo.addItem(field.name())
-                    self.classNameOutCombo.addItem(field.name())
                     
     def populateLayerInfo(self, selectedName):
-        """ jklsjfsdlk """
+        """ Populate the layer information from the selected layer """
         self.classNameCombo.clear()
         self.classNameOutCombo.clear()
         self.featProcessedCombo.clear()
 
         qgisIface = qgis.utils.iface
-        
         mCanvas = qgisIface.mapCanvas()
         
         allLayers = mCanvas.layers()
@@ -390,7 +382,6 @@ class ClassAccuracyMainDialog(QtGui.QDialog):
                 
                 if availFeats:
                     self.featLayer.startEditing()
-                
                     self.featLayer.setSelectedFeatures([self.cFeat.id()])
                     
                     cClassName = str(self.cFeat[self.selectedClassFieldIdx])
@@ -461,19 +452,20 @@ class ClassAccuracyMainDialog(QtGui.QDialog):
     def nextFeat(self):
         """ Get the next feat """
         if self.started:
-            ## Update the input layer
-            selectedOutClassIdx = self.classesCombo.currentIndex()
-            selectedOutClassName = self.classesCombo.itemText(selectedOutClassIdx)
+            if not self.justAssigned:
+                selectedOutClassIdx = self.classesCombo.currentIndex()
+                selectedOutClassName = self.classesCombo.itemText(selectedOutClassIdx)
+                
+                self.featLayer.changeAttributeValue(self.cFeat.id(), self.selectedClassOutFieldIdx, selectedOutClassName)
+                self.featLayer.changeAttributeValue(self.cFeat.id(), self.selectedFeatProcessedFieldIdx, 1)
+                
+                self.featLayer.commitChanges()
+                self.featLayer.startEditing()
             
-            self.featLayer.changeAttributeValue(self.cFeat.id(), self.selectedClassOutFieldIdx, selectedOutClassName, "")
-            self.featLayer.changeAttributeValue(self.cFeat.id(), self.selectedFeatProcessedFieldIdx, 1, "")
-            
-            self.featLayer.commitChanges()
-            self.featLayer.startEditing()
+                self.featLayer.setSelectedFeatures([])
+            self.justAssigned = False
             
             ## Move on to the next feature...
-            self.featLayer.setSelectedFeatures([])            
-            
             self.cFeatN = self.cFeatN + 1
             if self.cFeatN < self.numFeats:
                 self.cFeat = self.featIter.next()
@@ -482,7 +474,7 @@ class ClassAccuracyMainDialog(QtGui.QDialog):
                 if self.onlyGoToUnProcessedFeats:
                     foundUnProcessedFeat = False
                     while not foundUnProcessedFeat:
-                        if int(self.cFeat[self.selectedFeatProcessedFieldIdx]) == 0:
+                        if self.cFeat[self.selectedFeatProcessedFieldIdx] == 0:
                             foundUnProcessedFeat = True
                         else:
                             self.cFeatN = self.cFeatN + 1
@@ -494,15 +486,12 @@ class ClassAccuracyMainDialog(QtGui.QDialog):
                 
                 if availFeats:           
                     self.featLayer.setSelectedFeatures([self.cFeat.id()])
-                    #print("Feature ID : ", self.cFeat.id())
                     self.fidLabel.setText(str(self.cFeat.id()+1) + " of " + str(self.numFeats))
                     
                     cClassName = str(self.cFeat[self.selectedClassFieldIdx])
-                    #print("cClassName: ", cClassName)
                     self.classifiedLabel.setText(cClassName)
                     
                     outClassName = str(self.cFeat[self.selectedClassOutFieldIdx])
-                    #print("outClassName: ", outClassName)
                     if (outClassName == None) or (outClassName.strip() == "") or (not (outClassName.strip() in self.classNamesList)):
                         self.classesCombo.setCurrentIndex(self.classNamesList.index(cClassName))
                     else:
@@ -538,7 +527,6 @@ class ClassAccuracyMainDialog(QtGui.QDialog):
                     self.addClassField.setDisabled(True)
                 
             else:
-                #print("Processed all features...")
                 self.featLayer.commitChanges()
                 
                 self.startButton.setEnabled(True)
@@ -564,7 +552,6 @@ class ClassAccuracyMainDialog(QtGui.QDialog):
         
     def prevFeat(self):
         if self.started:
-            #print("Prev Feature")
             self.featLayer.setSelectedFeatures([])
             
             self.featIter = self.featLayer.getFeatures()
@@ -577,15 +564,12 @@ class ClassAccuracyMainDialog(QtGui.QDialog):
                 self.cFeatN = self.cFeatN + 1
             
             self.featLayer.setSelectedFeatures([self.cFeat.id()])
-            #print("Feature ID : ", self.cFeat.id())
             self.fidLabel.setText(str(self.cFeat.id()+1) + " of " + str(self.numFeats))
             
             cClassName = str(self.cFeat[self.selectedClassFieldIdx])
-            #print("cClassName: ", cClassName)
             self.classifiedLabel.setText(cClassName)
             
             outClassName = str(self.cFeat[self.selectedClassOutFieldIdx])
-            #print("outClassName: ", outClassName)
             if (outClassName == None) or (outClassName.strip() == "") or (not (outClassName.strip() in self.classNamesList)):
                 self.classesCombo.setCurrentIndex(self.classNamesList.index(cClassName))
             else:
@@ -600,25 +584,32 @@ class ClassAccuracyMainDialog(QtGui.QDialog):
     
     def assignFeats(self):
         if self.started:
-            ## Update the input layer
             selectedOutClassIdx = self.classesCombo.currentIndex()
             selectedOutClassName = self.classesCombo.itemText(selectedOutClassIdx)
             
             selFeats = self.featLayer.selectedFeatures()
             for selFeat in selFeats:            
-                self.featLayer.changeAttributeValue(selFeat.id(), self.selectedClassOutFieldIdx, selectedOutClassName, "")
-                self.featLayer.changeAttributeValue(selFeat.id(), self.selectedFeatProcessedFieldIdx, 1, "")
+                self.featLayer.changeAttributeValue(selFeat.id(), self.selectedClassOutFieldIdx, selectedOutClassName)
+                self.featLayer.changeAttributeValue(selFeat.id(), self.selectedFeatProcessedFieldIdx, 1)
             
             self.featLayer.commitChanges()
             self.featLayer.startEditing()
             
-            ## Move on to the next feature...
             self.featLayer.setSelectedFeatures([])
+            
+            self.cFeatN = 0
+            self.featIter = self.featLayer.getFeatures()
+            self.cFeat = self.featIter.next()
+            
+            self.featLayer.setSelectedFeatures([self.cFeat.id()])
+            self.fidLabel.setText(str(self.cFeat.id()+1) + " of " + str(self.numFeats))
+            
+            self.justAssigned = True
+
         
 
     def goToFeat(self):
         if self.started:
-            #print("Go To Feature")
             self.featLayer.setSelectedFeatures([])
             
             self.featIter = self.featLayer.getFeatures()
@@ -635,15 +626,12 @@ class ClassAccuracyMainDialog(QtGui.QDialog):
                 self.cFeatN = self.cFeatN + 1
             
             self.featLayer.setSelectedFeatures([self.cFeat.id()])
-            #print("Feature ID : ", self.cFeat.id())
             self.fidLabel.setText(str(self.cFeat.id()+1) + " of " + str(self.numFeats))
             
             cClassName = str(self.cFeat[self.selectedClassFieldIdx])
-            #print("cClassName: ", cClassName)
             self.classifiedLabel.setText(cClassName)
             
             outClassName = str(self.cFeat[self.selectedClassOutFieldIdx])
-            #print("outClassName: ", outClassName)
             if (outClassName == None) or (outClassName.strip() == "") or (not (outClassName.strip() in self.classNamesList)):
                 self.classesCombo.setCurrentIndex(self.classNamesList.index(cClassName))
             else:
@@ -659,7 +647,6 @@ class ClassAccuracyMainDialog(QtGui.QDialog):
     
     def addClassName(self):
         if self.started:
-            #print("Add Class Name")
             classNameTmp = self.addClassField.text()
             if (not classNameTmp == "") or (not classNameTmp == None):
                 self.classNamesList.append(classNameTmp)
@@ -671,7 +658,6 @@ class ClassAccuracyMainDialog(QtGui.QDialog):
     def updateScale(self):
         if self.started:
             self.cScaleBuffer = float(self.scaleOptionsTextLine.text())
-            #print(self.cScaleBuffer)
             
             box = self.featLayer.boundingBoxOfSelected()
             box = box.buffer(self.cScaleBuffer)
@@ -733,31 +719,22 @@ class ClassAccuracyMainDialog(QtGui.QDialog):
             self.addClassField.setDisabled(True)
         self.started = False
         
-        #print("calc error matrix")
         outCSVFilePath = QtGui.QFileDialog.getSaveFileName(self, 'Save Error Matrix CSV', '', '*.csv')
-        if outCSVFilePath:
-            #print(outCSVFilePath)
-            
+        if outCSVFilePath:            
             featsClassNamesImgList = self.featLayer.getValues(self.selectedClassFieldName)[0]
             featsClassNamesGrdList = self.featLayer.getValues(self.selectedClassOutFieldName)[0]
             numClasses = len(self.classNamesList)
-            
-            #print("Matrix Size: [" + str(numClasses) + "," + str(numClasses) + "]")
-            
+                        
             errMatrix = numpy.zeros((numClasses,numClasses), dtype=numpy.float)
-            #print(errMatrix)
             
             for i in range(self.numFeats):
                 imgClass = featsClassNamesImgList[i]
                 imgClassIdx = self.classNamesList.index(imgClass)
                 grdClass = featsClassNamesGrdList[i]
                 grdClassIdx = self.classNamesList.index(grdClass)
-                #print("[" + imgClass + ", " + grdClass + "] = [ " + str(imgClassIdx) + ", " + str(grdClassIdx) + "]")
                 errMatrix[imgClassIdx,grdClassIdx] = errMatrix[imgClassIdx,grdClassIdx] + 1
 
-            #print(errMatrix)
             errMatrixPercent = (errMatrix / numpy.sum(errMatrix)) * 100
-            #print(errMatrixPercent)
 
             producerAcc = numpy.zeros(numClasses, dtype=numpy.float)
             userAcc = numpy.zeros(numClasses, dtype=numpy.float)
@@ -766,20 +743,16 @@ class ClassAccuracyMainDialog(QtGui.QDialog):
             overallCorrCount = 0.0
             
             for i in range(numClasses):
-                #print(self.classNamesList[i])
                 corVal = float(errMatrix[i,i])
                 sumRow = float(numpy.sum(errMatrix[i,]))
                 sumCol = float(numpy.sum(errMatrix[...,i]))
                 overallCorrCount = overallCorrCount + corVal
-                #print("Correct: " + str(corVal))
-                #print("Sum Row: " + str(sumRow))
                 if sumRow == 0:
                     userAcc[i] = 0
                     userAccCount[i] = 0
                 else:
                     userAcc[i] = corVal / sumRow
                     userAccCount[i] = sumRow
-                #print("Sum Col: " + str(sumCol))
                 if sumCol == 0:
                     producerAcc[i] = 0
                     producerAccCount[i] = 0
@@ -791,18 +764,12 @@ class ClassAccuracyMainDialog(QtGui.QDialog):
             producerAcc = producerAcc * 100
             userAcc = userAcc * 100
             
-            #print("Overall Accuracy: " + str(overallAcc))
-            #print("Producer Accuracy: " + str(producerAcc))
-            #print("User Accuracy: " + str(userAcc))
-            
             kappaPartA = overallCorrCount * numpy.sum(producerAccCount)
             kappaPartB = numpy.sum(userAccCount * producerAccCount)
             kappaPartC = numpy.sum(errMatrix) * numpy.sum(errMatrix)
 
             kappa = float(kappaPartA - kappaPartB) / float(kappaPartC - kappaPartB)
-            
-            #print("Kappa: ", kappa)
-            
+                        
             with open(outCSVFilePath, 'wb') as csvfile:
                 accWriter = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
                 
@@ -854,6 +821,4 @@ class ClassAccuracyMainDialog(QtGui.QDialog):
                     prodRow.append(round(producerAcc[i],2))
                 prodRow.append(round(overallAcc,2))
                 accWriter.writerow(prodRow)
-                
-                
-                
+
