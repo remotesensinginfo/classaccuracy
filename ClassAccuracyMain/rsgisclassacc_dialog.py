@@ -171,6 +171,14 @@ class ClassAccuracyMainDialog(QtGui.QDialog):
         self.ctrlButtonLayout.addWidget(self.nextButton)
         self.mainLayout.addLayout(self.ctrlButtonLayout)
         
+        self.assignButton = QtGui.QPushButton(self)
+        self.assignButton.setText("Assign")
+        self.connect(self.assignButton, QtCore.SIGNAL("clicked()"), self.assignFeats)
+        self.assignButton.setDisabled(True)
+        self.assignButtonLayout = QtGui.QHBoxLayout()
+        self.assignButtonLayout.addWidget(self.assignButton)
+        self.mainLayout.addLayout(self.assignButtonLayout)
+        
         self.guiLabelStep4b = QtGui.QLabel()
         self.guiLabelStep4b.setText("4. Or go direct to a feature (index starts at 1):")
         self.mainLayout.addWidget(self.guiLabelStep4b)
@@ -404,6 +412,7 @@ class ClassAccuracyMainDialog(QtGui.QDialog):
                     self.nextButton.setEnabled(True)
                     self.nextButton.setDefault(True) 
                     self.prevButton.setEnabled(True)
+                    self.assignButton.setEnabled(True)
                     self.classifiedLabel.setEnabled(True)
                     self.fidLabel.setEnabled(True)
                     self.classesCombo.setEnabled(True)
@@ -436,6 +445,7 @@ class ClassAccuracyMainDialog(QtGui.QDialog):
                 
                 self.nextButton.setDisabled(True)
                 self.prevButton.setDisabled(True)
+                self.assignButton.setDisabled(True)
                 self.classifiedLabel.setDisabled(True)
                 self.classesCombo.setDisabled(True)
                 self.goToButton.setDisabled(True)
@@ -517,6 +527,7 @@ class ClassAccuracyMainDialog(QtGui.QDialog):
                     
                     self.nextButton.setDisabled(True)
                     self.prevButton.setDisabled(True)
+                    self.assignButton.setDisabled(True)
                     self.classifiedLabel.setDisabled(True)
                     self.classesCombo.setDisabled(True)
                     self.goToButton.setDisabled(True)
@@ -540,6 +551,7 @@ class ClassAccuracyMainDialog(QtGui.QDialog):
                 
                 self.nextButton.setDisabled(True)
                 self.prevButton.setDisabled(True)
+                self.assignButton.setDisabled(True)
                 self.classifiedLabel.setDisabled(True)
                 self.classesCombo.setDisabled(True)
                 self.goToButton.setDisabled(True)
@@ -585,6 +597,24 @@ class ClassAccuracyMainDialog(QtGui.QDialog):
             mCanvas = qgisIface.mapCanvas()
             mCanvas.setExtent(box)
             mCanvas.refresh()
+    
+    def assignFeats(self):
+        if self.started:
+            ## Update the input layer
+            selectedOutClassIdx = self.classesCombo.currentIndex()
+            selectedOutClassName = self.classesCombo.itemText(selectedOutClassIdx)
+            
+            selFeats = self.featLayer.selectedFeatures()
+            for selFeat in selFeats:            
+                self.featLayer.changeAttributeValue(selFeat.id(), self.selectedClassOutFieldIdx, selectedOutClassName, "")
+                self.featLayer.changeAttributeValue(selFeat.id(), self.selectedFeatProcessedFieldIdx, 1, "")
+            
+            self.featLayer.commitChanges()
+            self.featLayer.startEditing()
+            
+            ## Move on to the next feature...
+            self.featLayer.setSelectedFeatures([])
+        
 
     def goToFeat(self):
         if self.started:
@@ -665,6 +695,7 @@ class ClassAccuracyMainDialog(QtGui.QDialog):
             
             self.nextButton.setDisabled(True)
             self.prevButton.setDisabled(True)
+            self.assignButton.setDisabled(True)
             self.classifiedLabel.setDisabled(True)
             self.fidLabel.setDisabled(True)
             self.classesCombo.setDisabled(True)
@@ -690,6 +721,7 @@ class ClassAccuracyMainDialog(QtGui.QDialog):
             
             self.nextButton.setDisabled(True)
             self.prevButton.setDisabled(True)
+            self.assignButton.setDisabled(True)
             self.classifiedLabel.setDisabled(True)
             self.fidLabel.setDisabled(True)
             self.classesCombo.setDisabled(True)
