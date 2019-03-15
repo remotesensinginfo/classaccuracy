@@ -20,12 +20,15 @@
  *                                                                         *
  ***************************************************************************/
 """
-from PyQt4.QtCore import QSettings, QTranslator, qVersion, QCoreApplication
-from PyQt4.QtGui import QAction, QIcon
+"""from PyQt4.QtCore import QSettings, QTranslator, qVersion, QCoreApplication
+from PyQt4.QtGui import QAction, QIcon"""
+from PyQt5.QtCore import QSettings, QTranslator, QVersionNumber, QCoreApplication, Qt, QObject, pyqtSignal 
+from PyQt5.QtGui import QIcon 
+from PyQt5.QtWidgets import QAction, QDialog, QFormLayout
 # Initialize Qt resources from file resources.py
-import resources_rc
+from . import resources_rc
 # Import the code for the dialog
-from rsgisclassacc_dialog import ClassAccuracyMainDialog
+from .rsgisclassacc_dialog import ClassAccuracyMainDialog
 import os.path
 
 
