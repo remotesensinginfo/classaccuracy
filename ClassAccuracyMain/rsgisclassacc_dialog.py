@@ -21,18 +21,22 @@
  ***************************************************************************/
 """
 
+from builtins import str
+from builtins import range
 import os
 
-from PyQt4 import QtCore, QtGui
+from qgis.PyQt import QtCore, QtGui
+from PyQt5 import QtWidgets as QW
 import qgis.utils
 import numpy
 import csv
+from qgis.core import QgsVectorLayerUtils
 
 MESSAGE_TIMEOUT = 20000
 FEAT_BUFFER = 0.02
 
 
-class ClassNamesQComboBox(QtGui.QComboBox):
+class ClassNamesQComboBox(QW.QComboBox):
     
     nextFeatSignal = QtCore.pyqtSignal()
     
@@ -75,11 +79,11 @@ class ClassNamesQComboBox(QtGui.QComboBox):
             self.nextFeatSignal.emit()
 
 
-class ClassAccuracyMainDialog(QtGui.QDialog):
+class ClassAccuracyMainDialog(QW.QDialog):
     
     def __init__(self, parent=None):
         """Constructor."""
-        QtGui.QWidget.__init__(self, parent)
+        QW.QWidget.__init__(self, parent)
         # Set window size. 
         self.resize(320, 240)
 
@@ -87,177 +91,187 @@ class ClassAccuracyMainDialog(QtGui.QDialog):
         self.setWindowTitle("Accuracy Assessment Tool") 
         
         # Create mainLayout
-        self.mainLayout = QtGui.QVBoxLayout()
+        self.mainLayout = QW.QVBoxLayout()
         
-        self.guiLabelStep1 = QtGui.QLabel()
+        self.guiLabelStep1 = QW.QLabel()
         self.guiLabelStep1.setText("1. Select a Vector Layer:")
         self.mainLayout.addWidget(self.guiLabelStep1)
         
-        self.availLayersCombo = QtGui.QComboBox()
+        self.availLayersCombo = QW.QComboBox()
         self.availLayersCombo.currentIndexChanged['QString'].connect(self.populateLayerInfo)
         self.mainLayout.addWidget(self.availLayersCombo)
         
-        self.guiLabelStep2 = QtGui.QLabel()
+        self.guiLabelStep2 = QW.QLabel()
         self.guiLabelStep2.setText("2. Select Columns:")
         self.mainLayout.addWidget(self.guiLabelStep2)
         
-        self.classNameComboLabel = QtGui.QLabel()
+        self.classNameComboLabel = QW.QLabel()
         self.classNameComboLabel.setText("Classified Column:")
-        self.classNameCombo = QtGui.QComboBox()
-        self.classNameLayout = QtGui.QHBoxLayout()
+        self.classNameCombo = QW.QComboBox()
+        self.classNameLayout = QW.QHBoxLayout()
         self.classNameLayout.addWidget(self.classNameComboLabel)
         self.classNameLayout.addWidget(self.classNameCombo)
         self.mainLayout.addLayout(self.classNameLayout)
         
-        self.classNameOutComboLabel = QtGui.QLabel()
+        self.classNameOutComboLabel = QW.QLabel()
         self.classNameOutComboLabel.setText("Output Column:")
-        self.classNameOutCombo = QtGui.QComboBox()
-        self.classNameOutLayout = QtGui.QHBoxLayout()
+        self.classNameOutCombo = QW.QComboBox()
+        self.classNameOutLayout = QW.QHBoxLayout()
         self.classNameOutLayout.addWidget(self.classNameOutComboLabel)
         self.classNameOutLayout.addWidget(self.classNameOutCombo)
         self.mainLayout.addLayout(self.classNameOutLayout)
         
-        self.featProcessedComboLabel = QtGui.QLabel()
+        self.featProcessedComboLabel = QW.QLabel()
         self.featProcessedComboLabel.setText("Processed Column:")
-        self.featProcessedCombo = QtGui.QComboBox()
-        self.featProcessedLayout = QtGui.QHBoxLayout()
+        self.featProcessedCombo = QW.QComboBox()
+        self.featProcessedLayout = QW.QHBoxLayout()
         self.featProcessedLayout.addWidget(self.featProcessedComboLabel)
         self.featProcessedLayout.addWidget(self.featProcessedCombo)
         self.mainLayout.addLayout(self.featProcessedLayout)
         
-        self.visitProcessedCheckBox = QtGui.QCheckBox("Visit Processed Points")
+        self.visitProcessedCheckBox = QW.QCheckBox("Visit Processed Points")
         self.visitProcessedCheckBox.setCheckState(QtCore.Qt.Unchecked)
-        self.visitProcessedLayout = QtGui.QHBoxLayout()
+        self.visitProcessedLayout = QW.QHBoxLayout()
         self.visitProcessedLayout.addWidget(self.visitProcessedCheckBox)
         self.mainLayout.addLayout(self.visitProcessedLayout)
         
-        self.guiLabelStep3 = QtGui.QLabel()
+        self.guiLabelStep3 = QW.QLabel()
         self.guiLabelStep3.setText("3. Press Start when ready:")
         self.mainLayout.addWidget(self.guiLabelStep3)
         
         # Start and Finish buttons
-        self.startButton = QtGui.QPushButton(self)
+        self.startButton = QW.QPushButton(self)
         self.startButton.setText("Start")
         self.startButton.setDefault(True)
-        self.connect(self.startButton, QtCore.SIGNAL("clicked()"), self.startProcessing)
+        #self.connect(self.startButton, QtCore.SIGNAL("clicked()"), self.startProcessing)
+        self.startButton.clicked.connect(self.startProcessing)
 
-        self.finishButton = QtGui.QPushButton(self)
+        self.finishButton = QW.QPushButton(self)
         self.finishButton.setText("Finish")
-        self.connect(self.finishButton, QtCore.SIGNAL("clicked()"), self.finishProcessing)
-        self.connect(self.finishButton, QtCore.SIGNAL("clicked()"), self.reject)
+        #self.connect(self.finishButton, QtCore.SIGNAL("clicked()"), self.finishProcessing)
+        #self.connect(self.finishButton, QtCore.SIGNAL("clicked()"), self.reject)
+        self.finishButton.clicked.connect(self.finishProcessing)
+        self.finishButton.clicked.connect(self.reject)
 
-        self.mainButtonLayout = QtGui.QHBoxLayout()
+        self.mainButtonLayout = QW.QHBoxLayout()
         self.mainButtonLayout.addWidget(self.finishButton)
         self.mainButtonLayout.addWidget(self.startButton)
         self.mainLayout.addLayout(self.mainButtonLayout)
         
-        self.guiLabelStep4 = QtGui.QLabel()
+        self.guiLabelStep4 = QW.QLabel()
         self.guiLabelStep4.setText("4. Go through the features (Press Return for Next):")
         self.mainLayout.addWidget(self.guiLabelStep4)
         
         # next and prev buttons
-        self.nextButton = QtGui.QPushButton(self)
+        self.nextButton = QW.QPushButton(self)
         self.nextButton.setText("Next")
-        self.connect(self.nextButton, QtCore.SIGNAL("clicked()"), self.nextFeat)
+        #self.connect(self.nextButton, QtCore.SIGNAL("clicked()"), self.nextFeat)
+        self.nextButton.clicked.connect(self.nextFeat)
         self.nextButton.setDisabled(True)
 
-        self.prevButton = QtGui.QPushButton(self)
+        self.prevButton = QW.QPushButton(self)
         self.prevButton.setText("Prev")
-        self.connect(self.prevButton, QtCore.SIGNAL("clicked()"), self.prevFeat)
+        #self.connect(self.prevButton, QtCore.SIGNAL("clicked()"), self.prevFeat)
+        self.prevButton.clicked.connect(self.prevFeat)
         self.prevButton.setDisabled(True)
 
-        self.ctrlButtonLayout = QtGui.QHBoxLayout()
+        self.ctrlButtonLayout = QW.QHBoxLayout()
         self.ctrlButtonLayout.addWidget(self.prevButton)
         self.ctrlButtonLayout.addWidget(self.nextButton)
         self.mainLayout.addLayout(self.ctrlButtonLayout)
         
-        self.assignButton = QtGui.QPushButton(self)
+        self.assignButton = QW.QPushButton(self)
         self.assignButton.setText("Assign")
-        self.connect(self.assignButton, QtCore.SIGNAL("clicked()"), self.assignFeats)
+        #self.connect(self.assignButton, QtCore.SIGNAL("clicked()"), self.assignFeats)
+        self.assignButton.clicked.connect(self.assignFeats)
         self.assignButton.setDisabled(True)
-        self.assignButtonLayout = QtGui.QHBoxLayout()
+        self.assignButtonLayout = QW.QHBoxLayout()
         self.assignButtonLayout.addWidget(self.assignButton)
         self.mainLayout.addLayout(self.assignButtonLayout)
         
-        self.guiLabelStep4b = QtGui.QLabel()
+        self.guiLabelStep4b = QW.QLabel()
         self.guiLabelStep4b.setText("4. Or go direct to a feature (index starts at 1):")
         self.mainLayout.addWidget(self.guiLabelStep4b)
-        self.goToLabel = QtGui.QLabel()
+        self.goToLabel = QW.QLabel()
         self.goToLabel.setText("Go to Feature (ID):")
-        self.goToTextField = QtGui.QLineEdit()
+        self.goToTextField = QW.QLineEdit()
         self.goToTextField.setDisabled(True)
-        self.goToButton = QtGui.QPushButton(self)
+        self.goToButton = QW.QPushButton(self)
         self.goToButton.setText("Go To")
-        self.connect(self.goToButton, QtCore.SIGNAL("clicked()"), self.goToFeat)
+        #self.connect(self.goToButton, QtCore.SIGNAL("clicked()"), self.goToFeat)
+        self.goToButton.clicked.connect(self.goToFeat)
         self.goToButton.setDisabled(True)
-        self.goToLayout = QtGui.QHBoxLayout()
+        self.goToLayout = QW.QHBoxLayout()
         self.goToLayout.addWidget(self.goToLabel)
         self.goToLayout.addWidget(self.goToTextField)
         self.goToLayout.addWidget(self.goToButton)
         self.mainLayout.addLayout(self.goToLayout)
         
-        self.guiLabelStep5 = QtGui.QLabel()
+        self.guiLabelStep5 = QW.QLabel()
         self.guiLabelStep5.setText("5. Change class if incorrect:")
         self.mainLayout.addWidget(self.guiLabelStep5)
         
         # classified and correct combo options
-        self.fidLabel = QtGui.QLabel()
+        self.fidLabel = QW.QLabel()
         self.fidLabel.setDisabled(True)
-        self.classifiedLabel = QtGui.QLabel()
+        self.classifiedLabel = QW.QLabel()
         self.classifiedLabel.setDisabled(True)
         self.classesCombo = ClassNamesQComboBox()
         self.classesCombo.setDisabled(True)
         self.classesCombo.nextFeatSignal.connect(self.nextFeat) 
         
-        self.classesInfoLayout = QtGui.QHBoxLayout()
+        self.classesInfoLayout = QW.QHBoxLayout()
         self.classesInfoLayout.addWidget(self.fidLabel)
         self.classesInfoLayout.addWidget(self.classifiedLabel)
         self.classesInfoLayout.addWidget(self.classesCombo)
         self.mainLayout.addLayout(self.classesInfoLayout)
 
-        self.guiLabelStep6 = QtGui.QLabel()
+        self.guiLabelStep6 = QW.QLabel()
         self.guiLabelStep6.setText("6. Add extra classes to the list:")
         self.mainLayout.addWidget(self.guiLabelStep6)
         
-        self.addClassLabel = QtGui.QLabel()
+        self.addClassLabel = QW.QLabel()
         self.addClassLabel.setText("Class Name:")
-        self.addClassField = QtGui.QLineEdit()
+        self.addClassField = QW.QLineEdit()
         self.addClassField.setDisabled(True)
-        self.addClassButton = QtGui.QPushButton(self)
+        self.addClassButton = QW.QPushButton(self)
         self.addClassButton.setText("Add")
-        self.connect(self.addClassButton, QtCore.SIGNAL("clicked()"), self.addClassName)
+        #self.connect(self.addClassButton, QtCore.SIGNAL("clicked()"), self.addClassName)
+        self.addClassButton.clicked.connect(self.addClassName)
         self.addClassButton.setDisabled(True)
-        self.addClassLayout = QtGui.QHBoxLayout()
+        self.addClassLayout = QW.QHBoxLayout()
         self.addClassLayout.addWidget(self.addClassLabel)
         self.addClassLayout.addWidget(self.addClassField)
         self.addClassLayout.addWidget(self.addClassButton)
         self.mainLayout.addLayout(self.addClassLayout)
 
-        self.guiLabelStep7 = QtGui.QLabel()
+        self.guiLabelStep7 = QW.QLabel()
         self.guiLabelStep7.setText("7. Change scale:")
         self.mainLayout.addWidget(self.guiLabelStep7)
         
         self.cScaleBuffer = FEAT_BUFFER
         
-        self.scaleOptionsTextLine = QtGui.QLineEdit()
+        self.scaleOptionsTextLine = QW.QLineEdit()
         self.scaleOptionsTextLine.setText(str(self.cScaleBuffer))
         self.scaleOptionsTextLine.setDisabled(True)
-        self.changeScaleButton = QtGui.QPushButton(self)
+        self.changeScaleButton = QW.QPushButton(self)
         self.changeScaleButton.setText("Update")
-        self.connect(self.changeScaleButton, QtCore.SIGNAL("clicked()"), self.updateScale)
+        #self.connect(self.changeScaleButton, QtCore.SIGNAL("clicked()"), self.updateScale)
+        self.changeScaleButton.clicked.connect(self.updateScale)
         self.changeScaleButton.setDisabled(True)
-        self.scaleLayout = QtGui.QHBoxLayout()
+        self.scaleLayout = QW.QHBoxLayout()
         self.scaleLayout.addWidget(self.scaleOptionsTextLine)
         self.scaleLayout.addWidget(self.changeScaleButton)
         self.mainLayout.addLayout(self.scaleLayout)
         
-        self.guiLabelStep8 = QtGui.QLabel()
+        self.guiLabelStep8 = QW.QLabel()
         self.guiLabelStep8.setText("8. Produce Error Matrix:")
         self.mainLayout.addWidget(self.guiLabelStep8)
         
-        self.calcErrorMatrixButton = QtGui.QPushButton(self)
+        self.calcErrorMatrixButton = QW.QPushButton(self)
         self.calcErrorMatrixButton.setText("Calc Error Matrix")
-        self.connect(self.calcErrorMatrixButton, QtCore.SIGNAL("clicked()"), self.calcErrMatrix)
+        #self.connect(self.calcErrorMatrixButton, QtCore.SIGNAL("clicked()"), self.calcErrMatrix)
+        self.calcErrorMatrixButton.clicked.connect(self.calcErrMatrix)
         self.calcErrorMatrixButton.setDisabled(True)
         self.mainLayout.addWidget(self.calcErrorMatrixButton)
         
@@ -296,7 +310,7 @@ class ClassAccuracyMainDialog(QtGui.QDialog):
         fieldNames = list()
         for layer in allLayers:
             if layer.name() == selectedName:
-                layerFields = layer.pendingFields()
+                layerFields = layer.fields() #pendingFields
                 numFields = layerFields.size()
                 for i in range(numFields):
                     field = layerFields.field(i)
@@ -328,7 +342,7 @@ class ClassAccuracyMainDialog(QtGui.QDialog):
             
             self.selectedFeatProcessedFieldIdx = self.featProcessedCombo.currentIndex()
             self.selectedFeatProcessedFieldName = self.featProcessedCombo.itemText(self.selectedFeatProcessedFieldIdx)
-                    
+            
             allLayers = mCanvas.layers()
             found = False
             for layer in allLayers:
@@ -336,18 +350,18 @@ class ClassAccuracyMainDialog(QtGui.QDialog):
                     self.featLayer = layer
                     break
             
-            self.selectedClassFieldIdx = self.featLayer.fieldNameIndex(self.selectedClassFieldName)
-            self.selectedClassFieldOutIdx = self.featLayer.fieldNameIndex(self.selectedClassOutFieldName)
-            self.selectedFeatProcessedFieldIdx = self.featLayer.fieldNameIndex(self.selectedFeatProcessedFieldName)
+            self.selectedClassFieldIdx = self.featLayer.fields().indexFromName(self.selectedClassFieldName)
+            self.selectedClassFieldOutIdx = self.featLayer.fields().indexFromName(self.selectedClassOutFieldName)
+            self.selectedFeatProcessedFieldIdx = self.featLayer.fields().indexFromName(self.selectedFeatProcessedFieldName)
             
             self.onlyGoToUnProcessedFeats = True
             if self.visitProcessedCheckBox.checkState() == QtCore.Qt.Checked:
                 self.onlyGoToUnProcessedFeats = False
             
-            classNamesTmpList = self.featLayer.getValues(self.selectedClassFieldName)
-            self.classNamesList = list(set(classNamesTmpList[0]))
+            self.classNamesTmpList = QgsVectorLayerUtils.getValues(self.featLayer, self.selectedClassFieldName)
+            self.classNamesList = list(set(self.classNamesTmpList[0]))
                         
-            classOutNamesTmpList = self.featLayer.getValues(self.selectedClassOutFieldName)
+            classOutNamesTmpList = QgsVectorLayerUtils.getValues(self.featLayer, self.selectedClassOutFieldName)
             classOutNamesList = list(set(classOutNamesTmpList[0]))
             
             for classOutName in classOutNamesList:
@@ -360,10 +374,10 @@ class ClassAccuracyMainDialog(QtGui.QDialog):
             self.numFeats = self.featLayer.featureCount()
             self.cFeatN = 0
             
-            self.featLayer.setSelectedFeatures([])
+            self.featLayer.selectByIds([])
             
             self.featIter = self.featLayer.getFeatures()
-            self.cFeat = self.featIter.next()
+            self.cFeat = next(self.featIter)
             if self.cFeatN < self.numFeats:
                 
                 availFeats = True
@@ -375,14 +389,14 @@ class ClassAccuracyMainDialog(QtGui.QDialog):
                         else:
                             self.cFeatN = self.cFeatN + 1
                             if self.cFeatN < self.numFeats:
-                                self.cFeat = self.featIter.next()
+                                self.cFeat = next(self.featIter)
                             else:
                                 availFeats = False
                                 break
                 
                 if availFeats:
                     self.featLayer.startEditing()
-                    self.featLayer.setSelectedFeatures([self.cFeat.id()])
+                    self.featLayer.selectByIds([self.cFeat.id()])
                     
                     cClassName = str(self.cFeat[self.selectedClassFieldIdx])
                     self.classifiedLabel.setText(cClassName)
@@ -396,7 +410,7 @@ class ClassAccuracyMainDialog(QtGui.QDialog):
                     self.fidLabel.setText(str(self.cFeat.id()+1) + " of " + str(self.numFeats))
                     
                     box = self.featLayer.boundingBoxOfSelected()
-                    box = box.buffer(self.cScaleBuffer)
+                    box = box.buffered(self.cScaleBuffer)
                     mCanvas.setExtent(box)
                     mCanvas.refresh()
                     
@@ -462,13 +476,13 @@ class ClassAccuracyMainDialog(QtGui.QDialog):
                 self.featLayer.commitChanges()
                 self.featLayer.startEditing()
             
-                self.featLayer.setSelectedFeatures([])
+                self.featLayer.selectByIds([])
             self.justAssigned = False
             
             ## Move on to the next feature...
             self.cFeatN = self.cFeatN + 1
             if self.cFeatN < self.numFeats:
-                self.cFeat = self.featIter.next()
+                self.cFeat = next(self.featIter)
                 
                 availFeats = True
                 if self.onlyGoToUnProcessedFeats:
@@ -479,13 +493,13 @@ class ClassAccuracyMainDialog(QtGui.QDialog):
                         else:
                             self.cFeatN = self.cFeatN + 1
                             if self.cFeatN < self.numFeats:
-                                self.cFeat = self.featIter.next()
+                                self.cFeat = next(self.featIter)
                             else:
                                 availFeats = False
                                 break
                 
                 if availFeats:           
-                    self.featLayer.setSelectedFeatures([self.cFeat.id()])
+                    self.featLayer.selectByIds([self.cFeat.id()])
                     self.fidLabel.setText(str(self.cFeat.id()+1) + " of " + str(self.numFeats))
                     
                     cClassName = str(self.cFeat[self.selectedClassFieldIdx])
@@ -498,7 +512,7 @@ class ClassAccuracyMainDialog(QtGui.QDialog):
                         self.classesCombo.setCurrentIndex(self.classNamesList.index(outClassName))
                     
                     box = self.featLayer.boundingBoxOfSelected()
-                    box = box.buffer(self.cScaleBuffer)
+                    box = box.buffered(self.cScaleBuffer)
                     qgisIface = qgis.utils.iface        
                     mCanvas = qgisIface.mapCanvas()
                     mCanvas.setExtent(box)
@@ -552,18 +566,18 @@ class ClassAccuracyMainDialog(QtGui.QDialog):
         
     def prevFeat(self):
         if self.started:
-            self.featLayer.setSelectedFeatures([])
+            self.featLayer.selectByIds([])
             
             self.featIter = self.featLayer.getFeatures()
-            self.cFeat = self.featIter.next()
+            self.cFeat = next(self.featIter)
             numFeats2Process = self.cFeatN - 1
             self.cFeatN = 0
             
             for i in range(numFeats2Process):
-                self.cFeat = self.featIter.next()
+                self.cFeat = next(self.featIter)
                 self.cFeatN = self.cFeatN + 1
             
-            self.featLayer.setSelectedFeatures([self.cFeat.id()])
+            self.featLayer.selectByIds([self.cFeat.id()])
             self.fidLabel.setText(str(self.cFeat.id()+1) + " of " + str(self.numFeats))
             
             cClassName = str(self.cFeat[self.selectedClassFieldIdx])
@@ -576,7 +590,7 @@ class ClassAccuracyMainDialog(QtGui.QDialog):
                 self.classesCombo.setCurrentIndex(self.classNamesList.index(outClassName))
             
             box = self.featLayer.boundingBoxOfSelected()
-            box = box.buffer(self.cScaleBuffer)
+            box = box.buffered(self.cScaleBuffer)
             qgisIface = qgis.utils.iface        
             mCanvas = qgisIface.mapCanvas()
             mCanvas.setExtent(box)
@@ -595,13 +609,13 @@ class ClassAccuracyMainDialog(QtGui.QDialog):
             self.featLayer.commitChanges()
             self.featLayer.startEditing()
             
-            self.featLayer.setSelectedFeatures([])
+            self.featLayer.selectByIds([])
             
             self.cFeatN = 0
             self.featIter = self.featLayer.getFeatures()
-            self.cFeat = self.featIter.next()
+            self.cFeat = next(self.featIter)
             
-            self.featLayer.setSelectedFeatures([self.cFeat.id()])
+            self.featLayer.selectByIds([self.cFeat.id()])
             self.fidLabel.setText(str(self.cFeat.id()+1) + " of " + str(self.numFeats))
             
             self.justAssigned = True
@@ -610,10 +624,10 @@ class ClassAccuracyMainDialog(QtGui.QDialog):
 
     def goToFeat(self):
         if self.started:
-            self.featLayer.setSelectedFeatures([])
+            self.featLayer.selectByIds([])
             
             self.featIter = self.featLayer.getFeatures()
-            self.cFeat = self.featIter.next()
+            self.cFeat = next(self.featIter)
             numFeats2Process = int(self.goToTextField.text())-1
             if numFeats2Process < 0:
                 numFeats2Process = 0
@@ -622,10 +636,10 @@ class ClassAccuracyMainDialog(QtGui.QDialog):
             self.cFeatN = 0
             
             for i in range(numFeats2Process):
-                self.cFeat = self.featIter.next()
+                self.cFeat = next(self.featIter)
                 self.cFeatN = self.cFeatN + 1
             
-            self.featLayer.setSelectedFeatures([self.cFeat.id()])
+            self.featLayer.selectByIds([self.cFeat.id()])
             self.fidLabel.setText(str(self.cFeat.id()+1) + " of " + str(self.numFeats))
             
             cClassName = str(self.cFeat[self.selectedClassFieldIdx])
@@ -638,7 +652,7 @@ class ClassAccuracyMainDialog(QtGui.QDialog):
                 self.classesCombo.setCurrentIndex(self.classNamesList.index(outClassName))
             
             box = self.featLayer.boundingBoxOfSelected()
-            box = box.buffer(self.cScaleBuffer)
+            box = box.buffered(self.cScaleBuffer)
             qgisIface = qgis.utils.iface        
             mCanvas = qgisIface.mapCanvas()
             mCanvas.setExtent(box)
@@ -660,7 +674,7 @@ class ClassAccuracyMainDialog(QtGui.QDialog):
             self.cScaleBuffer = float(self.scaleOptionsTextLine.text())
             
             box = self.featLayer.boundingBoxOfSelected()
-            box = box.buffer(self.cScaleBuffer)
+            box = box.buffered(self.cScaleBuffer)
             qgisIface = qgis.utils.iface        
             mCanvas = qgisIface.mapCanvas()
             mCanvas.setExtent(box)
@@ -719,10 +733,10 @@ class ClassAccuracyMainDialog(QtGui.QDialog):
             self.addClassField.setDisabled(True)
         self.started = False
         
-        outCSVFilePath = QtGui.QFileDialog.getSaveFileName(self, 'Save Error Matrix CSV', '', '*.csv')
-        if outCSVFilePath:            
-            featsClassNamesImgList = self.featLayer.getValues(self.selectedClassFieldName)[0]
-            featsClassNamesGrdList = self.featLayer.getValues(self.selectedClassOutFieldName)[0]
+        outCSVFilePath = QW.QFileDialog.getSaveFileName(self, 'SaveErrorMatrixCSV', '', 'CSV(*.csv)') #(self, 'Save Error Matrix CSV', '', '*.csv')
+        if outCSVFilePath:
+            featsClassNamesImgList = QgsVectorLayerUtils.getValues(self.featLayer, self.selectedClassFieldName)[0]
+            featsClassNamesGrdList = QgsVectorLayerUtils.getValues(self.featLayer, self.selectedClassOutFieldName)[0]
             numClasses = len(self.classNamesList)
                         
             errMatrix = numpy.zeros((numClasses,numClasses), dtype=numpy.float)
@@ -770,7 +784,7 @@ class ClassAccuracyMainDialog(QtGui.QDialog):
 
             kappa = float(kappaPartA - kappaPartB) / float(kappaPartC - kappaPartB)
                         
-            with open(outCSVFilePath, 'wb') as csvfile:
+            with open(outCSVFilePath[0], 'w') as csvfile: #(outCSVFilePath, 'wb')
                 accWriter = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
                 
                 accWriter.writerow(['Overall Accuracy (%)', round(overallAcc,2)])

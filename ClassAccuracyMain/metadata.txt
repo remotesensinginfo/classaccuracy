@@ -9,10 +9,12 @@
 [general]
 name=ClassAccuracy
 qgisMinimumVersion=2.0
+qgisMaximumVersion=3.99
 description=Manually review the accuracy of a classification
 version=0.1
 author=Pete Bunting
 email=pfb@aber.ac.uk
+
 
 # End of mandatory metadata
 
