@@ -294,7 +294,7 @@ class ClassAccuracyMainDialog(QW.QDialog):
         allLayers = mCanvas.layers()
         first = True
         for layer in allLayers:
-            self.availLayersCombo.addItem(layer.name())
+            self.availLayersCombo.addItem(str(layer.name()))
                     
     def populateLayerInfo(self, selectedName):
         """ Populate the layer information from the selected layer """
@@ -315,9 +315,9 @@ class ClassAccuracyMainDialog(QW.QDialog):
                 for i in range(numFields):
                     field = layerFields.field(i)
                     if field not in fieldNames:
-                        self.classNameCombo.addItem(field.name())
-                        self.classNameOutCombo.addItem(field.name())
-                        self.featProcessedCombo.addItem(field.name())
+                        self.classNameCombo.addItem(str(field.name()))
+                        self.classNameOutCombo.addItem(str(field.name()))
+                        self.featProcessedCombo.addItem(str(field.name()))
                         fieldNames.append(field)
                 found = True
                 break
@@ -366,10 +366,10 @@ class ClassAccuracyMainDialog(QW.QDialog):
             
             for classOutName in classOutNamesList:
                 if (not classOutName in self.classNamesList) and (not classOutName == 'NULL') and (not classOutName == None):
-                    self.classNamesList.append(classOutName)
+                    self.classNamesList.append(str(classOutName))
             
             for className in self.classNamesList:
-                self.classesCombo.addItem(className)
+                self.classesCombo.addItem(str(className))
             
             self.numFeats = self.featLayer.featureCount()
             self.cFeatN = 0
