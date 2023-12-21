@@ -739,7 +739,7 @@ class ClassAccuracyMainDialog(QW.QDialog):
             featsClassNamesGrdList = QgsVectorLayerUtils.getValues(self.featLayer, self.selectedClassOutFieldName)[0]
             numClasses = len(self.classNamesList)
                         
-            errMatrix = numpy.zeros((numClasses,numClasses), dtype=numpy.float)
+            errMatrix = numpy.zeros((numClasses,numClasses), dtype=float)
             
             for i in range(self.numFeats):
                 imgClass = featsClassNamesImgList[i]
@@ -750,10 +750,10 @@ class ClassAccuracyMainDialog(QW.QDialog):
 
             errMatrixPercent = (errMatrix / numpy.sum(errMatrix)) * 100
 
-            producerAcc = numpy.zeros(numClasses, dtype=numpy.float)
-            userAcc = numpy.zeros(numClasses, dtype=numpy.float)
-            producerAccCount = numpy.zeros(numClasses, dtype=numpy.float)
-            userAccCount = numpy.zeros(numClasses, dtype=numpy.float)
+            producerAcc = numpy.zeros(numClasses, dtype=float)
+            userAcc = numpy.zeros(numClasses, dtype=float)
+            producerAccCount = numpy.zeros(numClasses, dtype=float)
+            userAccCount = numpy.zeros(numClasses, dtype=float)
             overallCorrCount = 0.0
             
             for i in range(numClasses):
