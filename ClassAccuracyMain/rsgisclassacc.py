@@ -20,16 +20,16 @@
  *                                                                         *
  ***************************************************************************/
 """
-"""from PyQt4.QtCore import QSettings, QTranslator, qVersion, QCoreApplication
-from PyQt4.QtGui import QAction, QIcon"""
-from PyQt5.QtCore import QSettings, QTranslator, QVersionNumber, QCoreApplication, Qt, QObject, pyqtSignal 
-from PyQt5.QtGui import QIcon 
-from PyQt5.QtWidgets import QAction, QDialog, QFormLayout
+
+import os.path
+from PyQt6.QtCore import QSettings, QTranslator, QVersionNumber, QCoreApplication, Qt, QObject, pyqtSignal 
+from PyQt6.QtGui import QIcon, QAction
+from PyQt6.QtWidgets import QDialog, QFormLayout
+
 # Initialize Qt resources from file resources.py
 from . import resources_rc
 # Import the code for the dialog
 from .rsgisclassacc_dialog import ClassAccuracyMainDialog
-import os.path
 
 
 class ClassAccuracyMain:
@@ -57,35 +57,29 @@ class ClassAccuracyMain:
         if os.path.exists(locale_path):
             self.translator = QTranslator()
             self.translator.load(locale_path)
-
-            if qVersion() > '4.3.3':
-                QCoreApplication.installTranslator(self.translator)
+            QCoreApplication.installTranslator(self.translator)
 
         # Create the dialog (after translation) and keep reference
         self.dlg = ClassAccuracyMainDialog()
 
         # Declare instance attributes
         self.actions = []
-        self.menu = self.tr(u'&ClassAccuracy')
+        self.menu = self.tr('&ClassAccuracy')
         # Setup toolbar - if needed.
-        self.toolbar = self.iface.addToolBar(u'ClassAccuracyMain')
-        self.toolbar.setObjectName(u'ClassAccuracyMain')
+        self.toolbar = self.iface.addToolBar('ClassAccuracyMain')
+        self.toolbar.setObjectName('ClassAccuracyMain')
 
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
         """Get the translation for a string using Qt translation API.
 
-        We implement this ourselves since we do not inherit QObject.
-
         :param message: String for translation.
-        :type message: str, QString
+        :type message: str
 
         :returns: Translated version of message.
-        :rtype: QString
+        :rtype: str
         """
-        # noinspection PyTypeChecker,PyArgumentList,PyCallByClass
         return QCoreApplication.translate('ClassAccuracyMain', message)
-
 
     def add_action(
         self,
@@ -100,43 +94,27 @@ class ClassAccuracyMain:
         parent=None):
         """Add a toolbar icon to the toolbar.
 
-        :param icon_path: Path to the icon for this action. Can be a resource
-            path (e.g. ':/plugins/foo/bar.png') or a normal file system path.
+        :param icon_path: Path to the icon for this action.
         :type icon_path: str
-
         :param text: Text that should be shown in menu items for this action.
         :type text: str
-
         :param callback: Function to be called when the action is triggered.
         :type callback: function
-
-        :param enabled_flag: A flag indicating if the action should be enabled
-            by default. Defaults to True.
+        :param enabled_flag: A flag indicating if the action should be enabled by default.
         :type enabled_flag: bool
-
-        :param add_to_menu: Flag indicating whether the action should also
-            be added to the menu. Defaults to True.
+        :param add_to_menu: Flag indicating whether the action should also be added to the menu.
         :type add_to_menu: bool
-
-        :param add_to_toolbar: Flag indicating whether the action should also
-            be added to the toolbar. Defaults to True.
+        :param add_to_toolbar: Flag indicating whether the action should also be added to the toolbar.
         :type add_to_toolbar: bool
-
-        :param status_tip: Optional text to show in a popup when mouse pointer
-            hovers over the action.
+        :param status_tip: Optional text to show in a popup when mouse pointer hovers over the action.
         :type status_tip: str
-
-        :param parent: Parent widget for the new action. Defaults None.
+        :param parent: Parent widget for the new action.
         :type parent: QWidget
+        :param whats_this: Optional text to show in the status bar when the mouse pointer hovers over the action.
 
-        :param whats_this: Optional text to show in the status bar when the
-            mouse pointer hovers over the action.
-
-        :returns: The action that was created. Note that the action is also
-            added to self.actions list.
+        :returns: The action that was created.
         :rtype: QAction
         """
-
         icon = QIcon(icon_path)
         action = QAction(icon, text, parent)
         action.triggered.connect(callback)
@@ -162,31 +140,26 @@ class ClassAccuracyMain:
 
     def initGui(self):
         """Create the menu entries and toolbar icons inside the QGIS GUI."""
-
         icon_path = ':/plugins/ClassAccuracyMain/icon.png'
         self.add_action(
             icon_path,
-            text=self.tr(u'Class Accuracy'),
+            text=self.tr('Class Accuracy'),
             callback=self.run,
             parent=self.iface.mainWindow())
-
 
     def unload(self):
         """Removes the plugin menu item and icon from QGIS GUI."""
         for action in self.actions:
             self.iface.removePluginMenu(
-                self.tr(u'&ClassAccuracy'),
+                self.tr('&ClassAccuracy'),
                 action)
             self.iface.removeToolBarIcon(action)
         # remove the toolbar
         del self.toolbar
-
 
     def run(self):
         """Run method that performs all the real work"""
         # show the dialog
         self.dlg.populateLayers()
         self.dlg.show()
-        
-        
-        
+

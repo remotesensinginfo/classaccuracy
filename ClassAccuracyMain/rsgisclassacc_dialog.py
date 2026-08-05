@@ -21,15 +21,13 @@
  ***************************************************************************/
 """
 
-from builtins import str
-from builtins import range
 import os
-
-from qgis.PyQt import QtCore, QtGui
-from PyQt5 import QtWidgets as QW
-import qgis.utils
-import numpy
 import csv
+import numpy
+
+from PyQt6 import QtCore, QtGui
+from PyQt6 import QtWidgets as QW
+import qgis.utils
 from qgis.core import QgsVectorLayerUtils
 
 MESSAGE_TIMEOUT = 20000
@@ -45,45 +43,47 @@ class ClassNamesQComboBox(QW.QComboBox):
         self.setEditable(False)
 
     def keyPressEvent(self, event):
-        if (event.type() == QtCore.QEvent.KeyPress) and (event.key() == QtCore.Qt.Key_1):
+        if (event.type() == QtCore.QEvent.Type.KeyPress) and (event.key() == QtCore.Qt.Key.Key_1):
             if self.count() > 0:
                 self.setCurrentIndex(0)
-        elif (event.type() == QtCore.QEvent.KeyPress) and (event.key() == QtCore.Qt.Key_2):
+        elif (event.type() == QtCore.QEvent.Type.KeyPress) and (event.key() == QtCore.Qt.Key.Key_2):
             if self.count() > 1:
                 self.setCurrentIndex(1)
-        elif (event.type() == QtCore.QEvent.KeyPress) and (event.key() == QtCore.Qt.Key_3):
+        elif (event.type() == QtCore.QEvent.Type.KeyPress) and (event.key() == QtCore.Qt.Key.Key_3):
             if self.count() > 2:
                 self.setCurrentIndex(2)
-        elif (event.type() == QtCore.QEvent.KeyPress) and (event.key() == QtCore.Qt.Key_4):
+        elif (event.type() == QtCore.QEvent.Type.KeyPress) and (event.key() == QtCore.Qt.Key.Key_4):
             if self.count() > 3:
                 self.setCurrentIndex(3)
-        elif (event.type() == QtCore.QEvent.KeyPress) and (event.key() == QtCore.Qt.Key_5):
+        elif (event.type() == QtCore.QEvent.Type.KeyPress) and (event.key() == QtCore.Qt.Key.Key_5):
             if self.count() > 4:
                 self.setCurrentIndex(4)
-        elif (event.type() == QtCore.QEvent.KeyPress) and (event.key() == QtCore.Qt.Key_6):
+        elif (event.type() == QtCore.QEvent.Type.KeyPress) and (event.key() == QtCore.Qt.Key.Key_6):
             if self.count() > 5:
                 self.setCurrentIndex(5)
-        elif (event.type() == QtCore.QEvent.KeyPress) and (event.key() == QtCore.Qt.Key_7):
+        elif (event.type() == QtCore.QEvent.Type.KeyPress) and (event.key() == QtCore.Qt.Key.Key_7):
             if self.count() > 6:
                 self.setCurrentIndex(6)
-        elif (event.type() == QtCore.QEvent.KeyPress) and (event.key() == QtCore.Qt.Key_8):
+        elif (event.type() == QtCore.QEvent.Type.KeyPress) and (event.key() == QtCore.Qt.Key.Key_8):
             if self.count() > 7:
                 self.setCurrentIndex(7)
-        elif (event.type() == QtCore.QEvent.KeyPress) and (event.key() == QtCore.Qt.Key_9):
+        elif (event.type() == QtCore.QEvent.Type.KeyPress) and (event.key() == QtCore.Qt.Key.Key_9):
             if self.count() > 8:
                 self.setCurrentIndex(8)
-        elif (event.type() == QtCore.QEvent.KeyPress) and (event.key() == QtCore.Qt.Key_0):
+        elif (event.type() == QtCore.QEvent.Type.KeyPress) and (event.key() == QtCore.Qt.Key.Key_0):
             if self.count() > 9:
                 self.setCurrentIndex(9)
-        elif (event.type() == QtCore.QEvent.KeyPress) and ((event.key() == QtCore.Qt.Key_Return) or (event.key() == QtCore.Qt.Key_Enter)):
+        elif (event.type() == QtCore.QEvent.Type.KeyPress) and ((event.key() == QtCore.Qt.Key.Key_Return) or (event.key() == QtCore.Qt.Key.Key_Enter)):
             self.nextFeatSignal.emit()
+        else:
+            super(ClassNamesQComboBox, self).keyPressEvent(event)
 
 
 class ClassAccuracyMainDialog(QW.QDialog):
     
     def __init__(self, parent=None):
         """Constructor."""
-        QW.QWidget.__init__(self, parent)
+        super(ClassAccuracyMainDialog, self).__init__(parent)
         # Set window size. 
         self.resize(320, 240)
 
@@ -98,7 +98,7 @@ class ClassAccuracyMainDialog(QW.QDialog):
         self.mainLayout.addWidget(self.guiLabelStep1)
         
         self.availLayersCombo = QW.QComboBox()
-        self.availLayersCombo.currentIndexChanged['QString'].connect(self.populateLayerInfo)
+        self.availLayersCombo.currentTextChanged.connect(self.populateLayerInfo)
         self.mainLayout.addWidget(self.availLayersCombo)
         
         self.guiLabelStep2 = QW.QLabel()
@@ -130,7 +130,7 @@ class ClassAccuracyMainDialog(QW.QDialog):
         self.mainLayout.addLayout(self.featProcessedLayout)
         
         self.visitProcessedCheckBox = QW.QCheckBox("Visit Processed Points")
-        self.visitProcessedCheckBox.setCheckState(QtCore.Qt.Unchecked)
+        self.visitProcessedCheckBox.setCheckState(QtCore.Qt.CheckState.Unchecked)
         self.visitProcessedLayout = QW.QHBoxLayout()
         self.visitProcessedLayout.addWidget(self.visitProcessedCheckBox)
         self.mainLayout.addLayout(self.visitProcessedLayout)
@@ -143,13 +143,10 @@ class ClassAccuracyMainDialog(QW.QDialog):
         self.startButton = QW.QPushButton(self)
         self.startButton.setText("Start")
         self.startButton.setDefault(True)
-        #self.connect(self.startButton, QtCore.SIGNAL("clicked()"), self.startProcessing)
         self.startButton.clicked.connect(self.startProcessing)
 
         self.finishButton = QW.QPushButton(self)
         self.finishButton.setText("Finish")
-        #self.connect(self.finishButton, QtCore.SIGNAL("clicked()"), self.finishProcessing)
-        #self.connect(self.finishButton, QtCore.SIGNAL("clicked()"), self.reject)
         self.finishButton.clicked.connect(self.finishProcessing)
         self.finishButton.clicked.connect(self.reject)
 
@@ -165,13 +162,11 @@ class ClassAccuracyMainDialog(QW.QDialog):
         # next and prev buttons
         self.nextButton = QW.QPushButton(self)
         self.nextButton.setText("Next")
-        #self.connect(self.nextButton, QtCore.SIGNAL("clicked()"), self.nextFeat)
         self.nextButton.clicked.connect(self.nextFeat)
         self.nextButton.setDisabled(True)
 
         self.prevButton = QW.QPushButton(self)
         self.prevButton.setText("Prev")
-        #self.connect(self.prevButton, QtCore.SIGNAL("clicked()"), self.prevFeat)
         self.prevButton.clicked.connect(self.prevFeat)
         self.prevButton.setDisabled(True)
 
@@ -182,7 +177,6 @@ class ClassAccuracyMainDialog(QW.QDialog):
         
         self.assignButton = QW.QPushButton(self)
         self.assignButton.setText("Assign")
-        #self.connect(self.assignButton, QtCore.SIGNAL("clicked()"), self.assignFeats)
         self.assignButton.clicked.connect(self.assignFeats)
         self.assignButton.setDisabled(True)
         self.assignButtonLayout = QW.QHBoxLayout()
@@ -198,7 +192,6 @@ class ClassAccuracyMainDialog(QW.QDialog):
         self.goToTextField.setDisabled(True)
         self.goToButton = QW.QPushButton(self)
         self.goToButton.setText("Go To")
-        #self.connect(self.goToButton, QtCore.SIGNAL("clicked()"), self.goToFeat)
         self.goToButton.clicked.connect(self.goToFeat)
         self.goToButton.setDisabled(True)
         self.goToLayout = QW.QHBoxLayout()
@@ -236,7 +229,6 @@ class ClassAccuracyMainDialog(QW.QDialog):
         self.addClassField.setDisabled(True)
         self.addClassButton = QW.QPushButton(self)
         self.addClassButton.setText("Add")
-        #self.connect(self.addClassButton, QtCore.SIGNAL("clicked()"), self.addClassName)
         self.addClassButton.clicked.connect(self.addClassName)
         self.addClassButton.setDisabled(True)
         self.addClassLayout = QW.QHBoxLayout()
@@ -256,7 +248,6 @@ class ClassAccuracyMainDialog(QW.QDialog):
         self.scaleOptionsTextLine.setDisabled(True)
         self.changeScaleButton = QW.QPushButton(self)
         self.changeScaleButton.setText("Update")
-        #self.connect(self.changeScaleButton, QtCore.SIGNAL("clicked()"), self.updateScale)
         self.changeScaleButton.clicked.connect(self.updateScale)
         self.changeScaleButton.setDisabled(True)
         self.scaleLayout = QW.QHBoxLayout()
@@ -270,7 +261,6 @@ class ClassAccuracyMainDialog(QW.QDialog):
         
         self.calcErrorMatrixButton = QW.QPushButton(self)
         self.calcErrorMatrixButton.setText("Calc Error Matrix")
-        #self.connect(self.calcErrorMatrixButton, QtCore.SIGNAL("clicked()"), self.calcErrMatrix)
         self.calcErrorMatrixButton.clicked.connect(self.calcErrMatrix)
         self.calcErrorMatrixButton.setDisabled(True)
         self.mainLayout.addWidget(self.calcErrorMatrixButton)
@@ -292,7 +282,6 @@ class ClassAccuracyMainDialog(QW.QDialog):
         mCanvas = qgisIface.mapCanvas()
         
         allLayers = mCanvas.layers()
-        first = True
         for layer in allLayers:
             self.availLayersCombo.addItem(str(layer.name()))
                     
@@ -306,11 +295,10 @@ class ClassAccuracyMainDialog(QW.QDialog):
         mCanvas = qgisIface.mapCanvas()
         
         allLayers = mCanvas.layers()
-        found = False
         fieldNames = list()
         for layer in allLayers:
             if layer.name() == selectedName:
-                layerFields = layer.fields() #pendingFields
+                layerFields = layer.fields()
                 numFields = layerFields.size()
                 for i in range(numFields):
                     field = layerFields.field(i)
@@ -319,7 +307,6 @@ class ClassAccuracyMainDialog(QW.QDialog):
                         self.classNameOutCombo.addItem(str(field.name()))
                         self.featProcessedCombo.addItem(str(field.name()))
                         fieldNames.append(field)
-                found = True
                 break
 
     def startProcessing(self):
@@ -329,7 +316,7 @@ class ClassAccuracyMainDialog(QW.QDialog):
             qgisIface = qgis.utils.iface
                     
             mCanvas = qgisIface.mapCanvas()
-            mCanvas.setSelectionColor( QtGui.QColor("yellow") )
+            mCanvas.setSelectionColor(QtGui.QColor("yellow"))
             
             selectedIdx = self.availLayersCombo.currentIndex()
             selectedName = self.availLayersCombo.itemText(selectedIdx)
@@ -344,7 +331,6 @@ class ClassAccuracyMainDialog(QW.QDialog):
             self.selectedFeatProcessedFieldName = self.featProcessedCombo.itemText(self.selectedFeatProcessedFieldIdx)
             
             allLayers = mCanvas.layers()
-            found = False
             for layer in allLayers:
                 if layer.name() == selectedName:
                     self.featLayer = layer
@@ -355,7 +341,7 @@ class ClassAccuracyMainDialog(QW.QDialog):
             self.selectedFeatProcessedFieldIdx = self.featLayer.fields().indexFromName(self.selectedFeatProcessedFieldName)
             
             self.onlyGoToUnProcessedFeats = True
-            if self.visitProcessedCheckBox.checkState() == QtCore.Qt.Checked:
+            if self.visitProcessedCheckBox.checkState() == QtCore.Qt.CheckState.Checked:
                 self.onlyGoToUnProcessedFeats = False
             
             self.classNamesTmpList = QgsVectorLayerUtils.getValues(self.featLayer, self.selectedClassFieldName)
@@ -365,7 +351,7 @@ class ClassAccuracyMainDialog(QW.QDialog):
             classOutNamesList = list(set(classOutNamesTmpList[0]))
             
             for classOutName in classOutNamesList:
-                if (not classOutName in self.classNamesList) and (not classOutName == 'NULL') and (not classOutName == None):
+                if (not classOutName in self.classNamesList) and (not classOutName == 'NULL') and (not classOutName is None):
                     self.classNamesList.append(str(classOutName))
             
             for className in self.classNamesList:
@@ -402,7 +388,7 @@ class ClassAccuracyMainDialog(QW.QDialog):
                     self.classifiedLabel.setText(cClassName)
                     
                     outClassName = str(self.cFeat[self.selectedClassOutFieldIdx])
-                    if (outClassName == None) or (outClassName.strip() == "") or (not (outClassName.strip() in self.classNamesList)):
+                    if (outClassName is None) or (outClassName.strip() == "") or (not (outClassName.strip() in self.classNamesList)):
                         self.classesCombo.setCurrentIndex(self.classNamesList.index(cClassName))
                     else:
                         self.classesCombo.setCurrentIndex(self.classNamesList.index(outClassName))               
@@ -479,7 +465,6 @@ class ClassAccuracyMainDialog(QW.QDialog):
                 self.featLayer.selectByIds([])
             self.justAssigned = False
             
-            ## Move on to the next feature...
             self.cFeatN = self.cFeatN + 1
             if self.cFeatN < self.numFeats:
                 self.cFeat = next(self.featIter)
@@ -506,7 +491,7 @@ class ClassAccuracyMainDialog(QW.QDialog):
                     self.classifiedLabel.setText(cClassName)
                     
                     outClassName = str(self.cFeat[self.selectedClassOutFieldIdx])
-                    if (outClassName == None) or (outClassName.strip() == "") or (not (outClassName.strip() in self.classNamesList)):
+                    if (outClassName is None) or (outClassName.strip() == "") or (not (outClassName.strip() in self.classNamesList)):
                         self.classesCombo.setCurrentIndex(self.classNamesList.index(cClassName))
                     else:
                         self.classesCombo.setCurrentIndex(self.classNamesList.index(outClassName))
@@ -584,7 +569,7 @@ class ClassAccuracyMainDialog(QW.QDialog):
             self.classifiedLabel.setText(cClassName)
             
             outClassName = str(self.cFeat[self.selectedClassOutFieldIdx])
-            if (outClassName == None) or (outClassName.strip() == "") or (not (outClassName.strip() in self.classNamesList)):
+            if (outClassName is None) or (outClassName.strip() == "") or (not (outClassName.strip() in self.classNamesList)):
                 self.classesCombo.setCurrentIndex(self.classNamesList.index(cClassName))
             else:
                 self.classesCombo.setCurrentIndex(self.classNamesList.index(outClassName))
@@ -620,8 +605,6 @@ class ClassAccuracyMainDialog(QW.QDialog):
             
             self.justAssigned = True
 
-        
-
     def goToFeat(self):
         if self.started:
             self.featLayer.selectByIds([])
@@ -646,7 +629,7 @@ class ClassAccuracyMainDialog(QW.QDialog):
             self.classifiedLabel.setText(cClassName)
             
             outClassName = str(self.cFeat[self.selectedClassOutFieldIdx])
-            if (outClassName == None) or (outClassName.strip() == "") or (not (outClassName.strip() in self.classNamesList)):
+            if (outClassName is None) or (outClassName.strip() == "") or (not (outClassName.strip() in self.classNamesList)):
                 self.classesCombo.setCurrentIndex(self.classNamesList.index(cClassName))
             else:
                 self.classesCombo.setCurrentIndex(self.classNamesList.index(outClassName))
@@ -662,12 +645,11 @@ class ClassAccuracyMainDialog(QW.QDialog):
     def addClassName(self):
         if self.started:
             classNameTmp = self.addClassField.text()
-            if (not classNameTmp == "") or (not classNameTmp == None):
+            if (classNameTmp != "") and (classNameTmp is not None):
                 self.classNamesList.append(classNameTmp)
                 self.classesCombo.addItem(classNameTmp)
                 self.classesCombo.setCurrentIndex(self.classNamesList.index(classNameTmp))
             self.classesCombo.setFocus()
-
 
     def updateScale(self):
         if self.started:
@@ -733,20 +715,20 @@ class ClassAccuracyMainDialog(QW.QDialog):
             self.addClassField.setDisabled(True)
         self.started = False
         
-        outCSVFilePath = QW.QFileDialog.getSaveFileName(self, 'SaveErrorMatrixCSV', '', 'CSV(*.csv)') #(self, 'Save Error Matrix CSV', '', '*.csv')
+        outCSVFilePath, _ = QW.QFileDialog.getSaveFileName(self, 'Save Error Matrix CSV', '', 'CSV (*.csv)')
         if outCSVFilePath:
             featsClassNamesImgList = QgsVectorLayerUtils.getValues(self.featLayer, self.selectedClassFieldName)[0]
             featsClassNamesGrdList = QgsVectorLayerUtils.getValues(self.featLayer, self.selectedClassOutFieldName)[0]
             numClasses = len(self.classNamesList)
                         
-            errMatrix = numpy.zeros((numClasses,numClasses), dtype=float)
+            errMatrix = numpy.zeros((numClasses, numClasses), dtype=float)
             
             for i in range(self.numFeats):
                 imgClass = featsClassNamesImgList[i]
                 imgClassIdx = self.classNamesList.index(imgClass)
                 grdClass = featsClassNamesGrdList[i]
                 grdClassIdx = self.classNamesList.index(grdClass)
-                errMatrix[imgClassIdx,grdClassIdx] = errMatrix[imgClassIdx,grdClassIdx] + 1
+                errMatrix[imgClassIdx, grdClassIdx] = errMatrix[imgClassIdx, grdClassIdx] + 1
 
             errMatrixPercent = (errMatrix / numpy.sum(errMatrix)) * 100
 
@@ -757,9 +739,9 @@ class ClassAccuracyMainDialog(QW.QDialog):
             overallCorrCount = 0.0
             
             for i in range(numClasses):
-                corVal = float(errMatrix[i,i])
-                sumRow = float(numpy.sum(errMatrix[i,]))
-                sumCol = float(numpy.sum(errMatrix[...,i]))
+                corVal = float(errMatrix[i, i])
+                sumRow = float(numpy.sum(errMatrix[i, :]))
+                sumCol = float(numpy.sum(errMatrix[:, i]))
                 overallCorrCount = overallCorrCount + corVal
                 if sumRow == 0:
                     userAcc[i] = 0
@@ -784,11 +766,11 @@ class ClassAccuracyMainDialog(QW.QDialog):
 
             kappa = float(kappaPartA - kappaPartB) / float(kappaPartC - kappaPartB)
                         
-            with open(outCSVFilePath[0], 'w') as csvfile: #(outCSVFilePath, 'wb')
+            with open(outCSVFilePath, 'w', newline='') as csvfile:
                 accWriter = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
                 
-                accWriter.writerow(['Overall Accuracy (%)', round(overallAcc,2)])
-                accWriter.writerow(['kappa', round(kappa,2)])
+                accWriter.writerow(['Overall Accuracy (%)', round(overallAcc, 2)])
+                accWriter.writerow(['kappa', round(kappa, 2)])
                 
                 accWriter.writerow([])
                 accWriter.writerow(['Counts:'])
@@ -803,13 +785,13 @@ class ClassAccuracyMainDialog(QW.QDialog):
                     row = []
                     row.append(self.classNamesList[i])
                     for j in range(numClasses):
-                        row.append(errMatrix[i,j])
-                    row.append(round(userAccCount[i],2))
+                        row.append(errMatrix[i, j])
+                    row.append(round(userAccCount[i], 2))
                     accWriter.writerow(row)
                 
                 prodRow = ['Producer']
                 for i in range(numClasses):
-                    prodRow.append(round(producerAccCount[i],2))
+                    prodRow.append(round(producerAccCount[i], 2))
                 prodRow.append(overallCorrCount)
                 accWriter.writerow(prodRow)
                 
@@ -826,13 +808,13 @@ class ClassAccuracyMainDialog(QW.QDialog):
                     row = []
                     row.append(self.classNamesList[i])
                     for j in range(numClasses):
-                        row.append(round(errMatrixPercent[i,j],2))
-                    row.append(round(userAcc[i],2))
+                        row.append(round(errMatrixPercent[i, j], 2))
+                    row.append(round(userAcc[i], 2))
                     accWriter.writerow(row)
                 
                 prodRow = ['Producer (%)']
                 for i in range(numClasses):
-                    prodRow.append(round(producerAcc[i],2))
-                prodRow.append(round(overallAcc,2))
+                    prodRow.append(round(producerAcc[i], 2))
+                prodRow.append(round(overallAcc, 2))
                 accWriter.writerow(prodRow)
 
